@@ -16,7 +16,7 @@ const SPATIAL_DATA = "spatial"
 
 abstract type ResultSet end
 
-struct ADRIAResultSet{T1,T2,A,B,C,D,G,D1,D2,D3,DF} <: ResultSet
+struct ADRIAResultSet{T1,T2,A,B,C,D,G,D1,D2,D3,DF,DM} <: ResultSet
     name::String
     RCP::String
     invoke_time::String
@@ -43,6 +43,7 @@ struct ADRIAResultSet{T1,T2,A,B,C,D,G,D1,D2,D3,DF} <: ResultSet
     fog_log::C   # Reduction in bleaching mortality (0.0 - 1.0)
     shade_log::C # Reduction in bleaching mortality (0.0 - 1.0)
     coral_dhw_tol_log::D3
+    decision_matrix_log::DM
 end
 
 function ResultSet(
@@ -83,6 +84,10 @@ function ResultSet(
         DataCube(
             log_set["coral_dhw_log"],
             Symbol.(Tuple(log_set["coral_dhw_log"].attrs["structure"]))
+        ),
+        DataCube(
+            log_set["decision_matrix"],
+            Symbol.(Tuple(log_set["decision_matrix"].attrs["structure"]))
         )
     )
 end
@@ -212,7 +217,15 @@ function combine_results(result_sets...)::ResultSet
     # Store post-processed table of input parameters.
     input_set[:, :] = Matrix(all_inputs)
     logs = (;
-        zip([:ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_tol_log],
+        zip(
+            [
+                :ranks,
+                :seed_log,
+                :fog_log,
+                :shade_log,
+                :coral_dhw_tol_log,
+                :decision_matrix_log
+            ],
             setup_logs(
                 z_store,
                 rs1.loc_ids,

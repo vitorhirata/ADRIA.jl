@@ -367,7 +367,9 @@ function run_scenario(
 
     # Store logs
     c_dim = Base.ndims(result_set.raw) + 1
-    log_stores = (:site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log)
+    log_stores = (
+        :site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log, :decision_matrix_log
+    )
     for k in log_stores
         if k == :seed_log || k == :site_ranks
             concat_dim = c_dim
@@ -383,7 +385,7 @@ function run_scenario(
             err isa MethodError ? nothing : rethrow(err)
         end
 
-        if k == :seed_log
+        if k == :seed_log || k == :decision_matrix_log
             getfield(data_store, k)[:, :, :, idx] .= vals
         elseif k == :site_ranks
             if !isnothing(data_store.site_ranks)
@@ -841,6 +843,10 @@ function run_model(
     agg_cover_above_threshold_mask::BitVector = falses(n_habitable_locs)
     net_growth_rates = zeros(n_groups, n_sizes, n_locs)
 
+    # Decision matrix log
+    decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
+        location=domain.loc_ids[habitable_locs], criteria=seed_pref.names)
+
     for tstep::Int64 in 2:tf
         # Convert cover to absolute values to use within CoralBlox model
         C_cover_t[:, :, habitable_locs] .=
@@ -1225,6 +1231,8 @@ function run_model(
                     out_connectivity=out_conn[candidate_loc_indices]
                 )
 
+                decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
+
                 option = param_set[At("option_ts")][tstep]
                 seed_pref = options[options.option_name .== option, :preference][1]
                 selected_seed_ranks = select_locations(
@@ -1400,6 +1408,7 @@ function run_model(
         shade_log=Yshade,
         site_ranks=log_location_ranks,
         bleaching_mortality=bleaching_mort,
-        coral_dhw_log=collated_dhw_tol_log
+        coral_dhw_log=collated_dhw_tol_log,
+        decision_matrix_log=decision_matrix_log
     )
 end
