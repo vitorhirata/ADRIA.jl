@@ -157,7 +157,7 @@ function run_scenarios(
     sort!(scenarios_df, :RCP)
 
     @info "Setting up Result Set"
-    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df)
+    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df[:, Not("option_ts")])
 
     # Convert DataFrame to named matrix for faster iteration
     scenarios_matrix::YAXArray = DataCube(
@@ -481,7 +481,10 @@ function run_model(
 
     # Set random seed using intervention values
     # TODO: More robust way of getting intervention/criteria values
-    rnd_seed_val::Int64 = floor(Int64, sum(param_set[Where(x -> x != "RCP")]))  # select everything except RCP
+    # select everything except RCP and option_ts
+    rnd_seed_val::Int64 = floor(
+        Int64, sum(param_set[Where(x -> x != "RCP" && x != "option_ts")])
+    )
     Random.seed!(rnd_seed_val)
 
     # Extract environmental data
