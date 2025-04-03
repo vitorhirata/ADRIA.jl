@@ -495,6 +495,8 @@ function run_model(
         dhw_scen .= 0.0
     end
 
+    options = ADRIA.analysis.option_seed_preference()
+
     wave_idx::Int64 = Int64(param_set[At("wave_scenario")])
     if wave_idx > 0.0
         # TODO: Better conversion of Ub to wave mortality
@@ -1072,6 +1074,8 @@ function run_model(
                 out_connectivity=out_conn[_valid_locs]
             )
 
+            option = param_set[At("option_ts")][tstep]
+            seed_pref = options[options.option_name .== option, :preference][1]
             selected_seed_ranks = select_locations(
                 seed_pref,
                 decision_mat[location=locs_with_space[_valid_locs]],
