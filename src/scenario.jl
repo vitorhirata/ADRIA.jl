@@ -379,7 +379,8 @@ function run_scenario(
         :fog_log,
         :shade_log,
         :coral_dhw_log,
-        :coral_cover_log
+        :coral_cover_log,
+        :decision_matrix_log
     )
     for k in log_stores
         if k == :seed_log || k == :site_ranks
@@ -396,7 +397,7 @@ function run_scenario(
             err isa MethodError ? nothing : rethrow(err)
         end
 
-        if k == :seed_log || k == :mc_log
+        if k == :seed_log || k == :mc_log || k == :decision_matrix_log
             getfield(data_store, k)[:, :, :, idx] .= vals
         elseif k == :site_ranks
             if !isnothing(data_store.site_ranks)
@@ -930,6 +931,10 @@ function run_model(
 
     cover_transition_lb = 0.05
     cover_transition_ub = 0.80
+
+    # Decision matrix log
+    decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
+        location=domain.loc_ids[habitable_locs], criteria=seed_pref.names)
 
     for tstep::Int64 in 2:tf
         # Convert cover to absolute values to use within CoralBlox model
@@ -1498,6 +1503,8 @@ function run_model(
                             out_connectivity=out_conn[share_candidate_loc_idx]
                         )
 
+                        decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
+
                         option = param_set[At("option_ts")][tstep]
                         seed_pref = options[options.option_name .== option, :preference][1]
 
@@ -1691,6 +1698,7 @@ function run_model(
         site_ranks=log_location_ranks,
         bleaching_mortality=bleach_dhw,
         coral_dhw_log=collated_dhw_tol_log,
-        coral_cover_log=collated_cover_log
+        coral_cover_log=collated_cover_log,
+        decision_matrix_log=decision_matrix_log
     )
 end
