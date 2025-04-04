@@ -136,7 +136,7 @@ function run_scenarios(
     sort!(scenarios_df, :RCP)
 
     @info "Setting up Result Set"
-    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df)
+    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df[:, Not("option_ts")])
 
     # Convert DataFrame to named matrix for faster iteration
     scenarios_matrix::YAXArray = DataCube(
@@ -341,7 +341,9 @@ function run_scenario(
 
     # Store logs
     c_dim = Base.ndims(result_set.raw) + 1
-    log_stores = (:site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log)
+    log_stores = (
+        :site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log, :decision_matrix_log
+    )
     for k in log_stores
         if k == :seed_log || k == :site_ranks
             concat_dim = c_dim
@@ -357,7 +359,7 @@ function run_scenario(
             err isa MethodError ? nothing : rethrow(err)
         end
 
-        if k == :seed_log
+        if k == :seed_log || k == :decision_matrix_log
             getfield(data_store, k)[:, :, :, idx] .= vals
         elseif k == :site_ranks
             if !isnothing(data_store.site_ranks)
@@ -438,7 +440,10 @@ function run_model(
 
     # Set random seed using intervention values
     # TODO: More robust way of getting intervention/criteria values
-    rnd_seed_val::Int64 = floor(Int64, sum(param_set[Where(x -> x != "RCP")]))  # select everything except RCP
+    # select everything except RCP and option_ts
+    rnd_seed_val::Int64 = floor(
+        Int64, sum(param_set[Where(x -> x != "RCP" && x != "option_ts")])
+    )
     Random.seed!(rnd_seed_val)
 
     # Extract environmental data
@@ -450,6 +455,8 @@ function run_model(
         dhw_scen = copy(domain.dhw_scens[:, :, 1])
         dhw_scen .= 0.0
     end
+
+    options = ADRIA.analysis.option_seed_preference()
 
     wave_idx::Int64 = Int64(param_set[At("wave_scenario")])
     if wave_idx > 0.0
@@ -586,7 +593,8 @@ function run_model(
     )
 
     # Extract colony areas and determine approximate seeded area in m^2
-    seed_volume = param_set[At(taxa_names)]
+    seed_volume = map(Float64, param_set[At(taxa_names)])
+
     colony_areas = _to_group_size(
         domain.coral_growth, colony_mean_area(corals.mean_colony_diameter_m)
     )
@@ -720,6 +728,10 @@ function run_model(
 
     FLoops.assistant(false)
     habitable_loc_idxs = findall(habitable_locs)
+
+    decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
+        location=domain.loc_ids[habitable_locs], criteria=seed_pref.names)
+
     for tstep::Int64 in 2:tf
 
         # Convert cover to absolute values to use within CoralBlox model
@@ -914,6 +926,10 @@ function run_model(
                 out_connectivity=out_conn[_valid_locs]
             )
 
+            decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
+
+            option = param_set[At("option_ts")][tstep]
+            seed_pref = options[options.option_name .== option, :preference][1]
             selected_seed_ranks = select_locations(
                 seed_pref,
                 decision_mat[location=locs_with_space[_valid_locs]],
@@ -1056,7 +1072,8 @@ function run_model(
         shade_log=Yshade,
         site_ranks=log_location_ranks,
         bleaching_mortality=bleaching_mort,
-        coral_dhw_log=collated_dhw_tol_log
+        coral_dhw_log=collated_dhw_tol_log,
+        decision_matrix_log=decision_matrix_log
     )
 end
 

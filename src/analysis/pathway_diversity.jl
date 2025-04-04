@@ -1,4 +1,55 @@
 """
+    pathway_diversity(rs::ResultSet, scens::DataFrame)::DataFrame
+    pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Float64
+
+Compute pathway diversity for all options or only one option.
+"""
+function pathway_diversity(rs::ResultSet, scens::DataFrame)::DataFrame
+    options = ADRIA.analysis.option_seed_preference()
+    options.entropy = zeros(size(options, 1))
+
+    for (idx_option, start_option) in enumerate(options.option_name)
+        options[idx_option, :entropy] = pathway_probability(
+            rs, scens, idx_scens, start_option
+        )
+    end
+    return options[:, [:option_name, :entropy]]
+end
+function pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Vector{Float64}
+    start_time::Int64 = rs.inputs.seed_year_start[1] + rs.inputs.pd_frequency[1]
+    end_time::Int64 =
+        rs.inputs.seed_year_start[1] + rs.inputs.seed_years[1] - rs.inputs.pd_frequency[1]
+    min_locs::Int64 = rs.inputs.min_iv_locations[1]
+    mcda_method = ADRIA.mcda_methods()[Int64(rs.inputs.guided[1])]
+
+    idx_scens = findall(
+        option_ts -> option_ts[Int64(rs.inputs.seed_year_start[1])] == option,
+        scens.option_ts
+    )
+    probs = zeros(length(idx_scens))
+
+    for idx_scen in idx_scens
+        option_ts = scens.option_ts[idx_scen]
+        for tstep in start_time:pd_frequency:end_time
+            decision_matrix = rs.decision_matrix_log[timesteps=tstep, scenarios=idx_scen]
+
+            # Filter empty locations. Check if necessary. Check if should replace zero by missing
+            filled_loc = map(
+                loc -> any(decision_matrix[location=loc] .== 0),
+                1:size(decision_matrix, :location)
+            )
+            decision_matrix = decision_matrix[location=filled_loc]
+
+            probs[idx_scen] *= ADRIA.analysis.switching_probability(
+                option_ts[tstep - 1], decision_matrix, rs.loc_data, mcda_method, min_locs,
+                option_ts[tstep]
+            )
+        end
+    end
+    return sum(_entropy.(probs))
+end
+
+"""
     switching_probability(past_option::Symbol, decision_matrix::YAXArray)::Dict{Symbol, Float64}
 
 Compute switching probability for all defined pathway diversity options.
@@ -232,4 +283,13 @@ Compute the mean pairwise distance across locations in a given GeoDataFrame.
 """
 function _dispersion(locations::DataFrame)
     return mean(ADRIA.mean_distance(locations))
+end
+
+"""
+    _entropy(x::Float64)::Float64
+
+Return causal entropy for a given value.
+"""
+function _entropy(x::Float64)::Float64
+    return -x * log(x)
 end
