@@ -17,7 +17,7 @@ using ADRIA.metrics:
     absolute_shelter_volume,
     relative_shelter_volume
 using ADRIA.metrics: relative_juveniles, relative_taxa_cover, juvenile_indicator
-using ADRIA.metrics: coral_evenness
+using ADRIA.metrics: coral_evenness, coral_diversity
 using ADRIA.decision
 
 """
@@ -1131,13 +1131,21 @@ function run_model(
                 area_weighted_conn, vec(loc_coral_cover), conn_cache
             )
 
+            loc_taxa_cover = relative_loc_taxa_cover(
+                reshape(C_cover_t, (1, n_group_and_size, n_locs)),
+                vec_abs_k,
+                n_groups
+            )
+            diversity = coral_diversity(loc_taxa_cover.data)[timesteps=1].data
+
             update_criteria_values!(
                 decision_mat;
                 heat_stress=dhw_projection[_valid_locs],
                 wave_stress=wave_projection[_valid_locs],
                 coral_cover=loc_coral_cover[_valid_locs],  # Coral cover relative to `k`
                 in_connectivity=in_conn[_valid_locs],  # area weighted connectivities for time `t`
-                out_connectivity=out_conn[_valid_locs]
+                out_connectivity=out_conn[_valid_locs],
+                coral_diversity=diversity[_valid_locs]
             )
 
             decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
