@@ -629,7 +629,7 @@ function run_model(
 
     # Sim constants
     sim_params = domain.sim_constants
-    tf::Int64 = size(dhw_scen, 1)
+    tf::Int64 = param_set[At("seed_year_start")] + param_set[At("seed_years")]
     n_locs::Int64 = domain.coral_growth.n_locs
     n_groups::Int64 = domain.coral_growth.n_groups
     n_sizes::Int64 = domain.coral_growth.n_sizes
