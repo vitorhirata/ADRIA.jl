@@ -923,7 +923,7 @@ function run_model(
     habitable_loc_idxs = findall(habitable_locs)
 
     decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
-        location=domain.loc_ids[habitable_locs], criteria=seed_pref.names)
+        location=domain.loc_ids, criteria=seed_pref.names)
 
     apply_growth_acc_mask::BitVector = trues(n_locs)
     for tstep::Int64 in 2:tf

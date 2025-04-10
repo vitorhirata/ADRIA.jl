@@ -37,6 +37,11 @@ function pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Vec
         option_ts = scens.option_ts[idx_scen]
         for tstep in start_time:rs.inputs.pd_frequency[1]:end_time
             decision_matrix = rs.decision_matrix_log[timesteps=tstep, scenarios=idx_scen]
+
+            # Filter out locations with empty data based on coral cover data
+            valid_locs = decision_matrix[criteria=6] .!= 0.0
+            decision_matrix = decision_matrix[location=valid_locs]
+
             probs[idx_prob] *= ADRIA.analysis.switching_probability(
                 option_ts[tstep - 1], decision_matrix, rs.loc_data, mcda_method, min_locs,
                 option_ts[tstep]
