@@ -824,7 +824,7 @@ function run_model(
     apply_growth_acc_mask::BitVector = trues(n_locs)
     cache_habitable_max_projected_cover = copy(habitable_max_projected_cover)
     agg_cover_above_threshold_mask::BitVector = falses(n_habitable_locs)
-    for tstep::Int64 in 2:tf
+    for tstep::Int64 in 2:(param_set[At("seed_year_start")] + param_set[At("seed_years")])
         # Convert cover to absolute values to use within CoralBlox model
         C_cover_t[:, :, habitable_locs] .=
             C_cover[tstep - 1, :, :, habitable_locs] .* habitable_loc_areas′
