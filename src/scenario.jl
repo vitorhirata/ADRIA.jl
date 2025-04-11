@@ -669,7 +669,7 @@ function run_model(
         fog_pref = FogPreferences(domain, param_set)
 
         # Calculate cluster diversity and geographic separation scores
-        diversity_scores = decision.cluster_diversity(domain.loc_data.cluster_id)
+        diversity_scores = decision.cluster_diversity(domain.loc_data.SPATIAL_GROUPING)
         separation_scores = decision.geographic_separation(domain.loc_data.mean_to_neighbor)
 
         # Create shared decision matrix, setting criteria values that do not change
