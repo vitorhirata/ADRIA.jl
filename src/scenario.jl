@@ -1181,7 +1181,7 @@ function run_model(
             dhw_p = copy(dhw_scen)
             dhw_p[tstep, :] .= dhw_t
             dhw_projection = weighted_projection(dhw_p, tstep, plan_horizon, decay, tf)
-            wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
+            #wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
 
             # Calculate current location cover
             current_loc_cover = dropdims(sum(C_cover_t; dims=(1, 2)); dims=(1, 2))
@@ -1233,7 +1233,7 @@ function run_model(
                 update_criteria_values!(
                     decision_mat[location=At(candidate_seed_locs)];
                     heat_stress=dhw_projection[candidate_loc_indices],
-                    wave_stress=wave_projection[candidate_loc_indices],
+                    #wave_stress=wave_projection[candidate_loc_indices],
                     coral_cover=current_loc_cover[candidate_loc_indices],
                     in_connectivity=in_conn[candidate_loc_indices],
                     out_connectivity=out_conn[candidate_loc_indices],
