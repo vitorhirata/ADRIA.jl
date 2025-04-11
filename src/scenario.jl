@@ -629,7 +629,7 @@ function run_model(
 
     # Sim constants
     sim_params = domain.sim_constants
-    tf::Int64 = param_set[At("seed_year_start")] + param_set[At("seed_years")]
+    tf::Int64 = size(dhw_scen, 1)
     n_locs::Int64 = domain.coral_growth.n_locs
     n_groups::Int64 = domain.coral_growth.n_groups
     n_sizes::Int64 = domain.coral_growth.n_sizes
@@ -926,7 +926,7 @@ function run_model(
         location=domain.loc_ids, criteria=seed_pref.names)
 
     apply_growth_acc_mask::BitVector = trues(n_locs)
-    for tstep::Int64 in 2:tf
+    for tstep::Int64 in 2:(param_set[At("seed_year_start")] + param_set[At("seed_years")])
 
         # Convert cover to absolute values to use within CoralBlox model
         C_cover_t[:, :, habitable_locs] .=

@@ -399,8 +399,7 @@ function setup_result_store!(domain::Domain, scen_spec::DataFrame)::Tuple
     # Store table of factor values
     inputs[:, :] = Matrix(scen_spec)
 
-    _, n_locations, _ = size(domain.dhw_scens)
-    tf = scen_spec.seed_year_start[1] + scen_spec.seed_years[1]
+    tf, n_locations, _ = size(domain.dhw_scens)
     n_scenarios = nrow(scen_spec)
 
     # Set up stores for each metric
