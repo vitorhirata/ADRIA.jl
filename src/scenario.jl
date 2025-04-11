@@ -1062,7 +1062,7 @@ function run_model(
             dhw_p[tstep, :] .= dhw_t
 
             dhw_projection = weighted_projection(dhw_p, tstep, plan_horizon, decay, tf)
-            wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
+            #wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
 
             # Determine connectivity strength weighting by area.
             # Accounts for strength of connectivity where there is low/no coral cover
@@ -1080,7 +1080,7 @@ function run_model(
             update_criteria_values!(
                 decision_mat;
                 heat_stress=dhw_projection[_valid_locs],
-                wave_stress=wave_projection[_valid_locs],
+                #wave_stress=wave_projection[_valid_locs],
                 coral_cover=_loc_coral_cover[_valid_locs],  # Coral cover relative to `k`
                 in_connectivity=in_conn[_valid_locs],  # area weighted connectivities for time `t`
                 out_connectivity=out_conn[_valid_locs],
