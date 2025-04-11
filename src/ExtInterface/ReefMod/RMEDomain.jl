@@ -115,7 +115,7 @@ function load_domain(
     ::Type{RMEDomain},
     fn_path::String,
     RCP::String;
-    timeframe::Tuple{Int64, Int64}=(2022, 2100)
+    timeframe::Tuple{Int64,Int64}=(2022, 2100)
 )::RMEDomain
     isdir(fn_path) ? true : error("Path does not exist or is not a directory.")
 
@@ -174,7 +174,7 @@ function load_domain(
     # Set all site depths to 7m below sea level
     # (ReefMod does not account for depth)
     # Ensure column is of float type
-    spatial_data[:, :depth_med] .= 7.0
+    #spatial_data[:, :depth_med] .= 7.0
     spatial_data[!, :depth_med] = convert.(Float64, spatial_data[!, :depth_med])
 
     # Add GBRMPA zone type info as well
@@ -514,7 +514,7 @@ function switch_RCPs!(d::RMEDomain, RCP::String)::RMEDomain
     @set! d.RCP = RCP
     data_files = joinpath(d.env_layer_md.dpkg_path, "data_files")
 
-    timeframe::Tuple{Int64, Int64} = (
+    timeframe::Tuple{Int64,Int64} = (
         d.env_layer_md.timeframe[1],
         d.env_layer_md.timeframe[end]
     )
