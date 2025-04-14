@@ -17,7 +17,7 @@ function pathway_diversity(rs::ResultSet, scens::DataFrame)::DataFrame
             _entropy.(options[idx_option, :probabilities])
         )
     end
-    return options[:, [:option_name, :pathway_diversity, :probabilities]]
+    return options[:, [:option_name, :pathway_diversity]]
 end
 function pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Vector{Float64}
     start_time::Int64 = rs.inputs.seed_year_start[1] + rs.inputs.pd_frequency[1]
@@ -33,14 +33,14 @@ function pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Vec
     probs = ones(length(idx_scens))
 
     for (idx_prob, idx_scen) in enumerate(idx_scens)
-        println("Scenario $(idx_scen)")
+        #println("Scenario $(idx_scen)")
         option_ts = scens.option_ts[idx_scen]
-        for tstep in start_time:rs.inputs.pd_frequency[1]:end_time
+        for tstep in start_time:Int64(rs.inputs.pd_frequency[1]):end_time
             decision_matrix = rs.decision_matrix_log[timesteps=tstep, scenarios=idx_scen]
 
             # Filter out locations with empty data based on coral cover data
-            valid_locs = decision_matrix[criteria=6] .!= 0.0
-            decision_matrix = decision_matrix[location=valid_locs]
+            #valid_locs = decision_matrix[criteria=6] .!= 0.0
+            #decision_matrix = decision_matrix[location=valid_locs]
 
             probs[idx_prob] *= ADRIA.analysis.switching_probability(
                 option_ts[tstep - 1], decision_matrix, rs.loc_data, mcda_method, min_locs,
@@ -148,8 +148,12 @@ Normalized mean pairwise distance between locations at selected_locations1 and s
 function option_similarity(
     selected_locations1::DataFrame,
     selected_locations2::DataFrame,
-    max_distance::Float64=1000000.0
+    max_distance::Float64=1500000.0
 )::Float64
+    if selected_locations1 == selected_locations2
+        return 1
+    end
+
     locations1_coord = ADRIA.centroids(selected_locations1)
     locations2_coord = ADRIA.centroids(selected_locations2)
 
@@ -185,8 +189,8 @@ function cost_index(
     locations::DataFrame,
     ports::DataFrame;
     weight::Float64=0.6,
-    max_distance_port::Float64=250000.0,
-    max_dispersion::Float64=800000.0
+    max_distance_port::Float64=600000.0,
+    max_dispersion::Float64=950000.0
 )
     distance_port = _distance_port(locations, ports)
     if distance_port > max_distance_port
