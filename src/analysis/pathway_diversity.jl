@@ -6,20 +6,26 @@ Compute pathway diversity for all options or only one option. If one option is p
 the vector of probabilities and if no option is passed it returns a dataframe with the probability
 and pathway diversity value.
 """
-function pathway_diversity(rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64})::DataFrame
+function pathway_diversity(
+    rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64}
+)::DataFrame
     options = ADRIA.analysis.option_seed_preference()
     options.probabilities = fill(Float64[], size(options, 1))
     options.pathway_diversity = zeros(size(options, 1))
 
     for (idx_option, start_option) in enumerate(options.option_name)
-        options[idx_option, :probabilities] = pathway_diversity(rs, scens, idx_scens, start_option)
+        options[idx_option, :probabilities] = pathway_diversity(
+            rs, scens, idx_scens, start_option
+        )
         options[idx_option, :pathway_diversity] = sum(
             _entropy.(options[idx_option, :probabilities])
         )
     end
     return options[:, [:option_name, :pathway_diversity]]
 end
-function pathway_diversity(rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64}, option::Symbol)::Vector{Float64}
+function pathway_diversity(
+    rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64}, option::Symbol
+)::Vector{Float64}
     start_time::Int64 = rs.inputs.seed_year_start[1] + rs.inputs.pd_frequency[1]
     end_time::Int64 =
         rs.inputs.seed_year_start[1] + rs.inputs.seed_years[1] - rs.inputs.pd_frequency[1]
@@ -31,7 +37,6 @@ function pathway_diversity(rs::ResultSet, scens::DataFrame, idx_scens::Vector{In
         scens.option_ts
     )
     idx_scens = intersect(idx_scens, idx_option_scens)
-    println(idx_scens)
     probs = ones(length(idx_scens))
 
     for (idx_prob, idx_scen) in enumerate(idx_scens)
@@ -191,26 +196,20 @@ function cost_index(
     locations::DataFrame,
     ports::DataFrame;
     weight::Float64=0.6,
-    max_distance_port::Float64=600000.0,
-    max_dispersion::Float64=950000.0
+    max_distance_port::Float64=700000.0,
+    max_dispersion::Float64=990000.0
 )
     distance_port = _distance_port(locations, ports)
     if distance_port > max_distance_port
-        throw(
-            ArgumentError(
-                "distance_port bigger than max_distance_port: distance_port: $(distance_port)"
-            )
-        )
+        @warn "distance_port bigger than max_distance_port: distance_port: $(distance_port)."
+        max_distance_port = distance_port
     end
     distance_port /= max_distance_port
 
     dispersion = _dispersion(locations)
     if dispersion > max_dispersion
-        throw(
-            ArgumentError(
-                "Dispersion bigger than max_dispersion: dispersion: $(dispersion)"
-            )
-        )
+        @warn "Dispersion bigger than max_dispersion: dispersion: $(dispersion)"
+        max_dispersion = dispersion
     end
     dispersion /= max_dispersion
 
