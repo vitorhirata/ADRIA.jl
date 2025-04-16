@@ -6,30 +6,32 @@ Compute pathway diversity for all options or only one option. If one option is p
 the vector of probabilities and if no option is passed it returns a dataframe with the probability
 and pathway diversity value.
 """
-function pathway_diversity(rs::ResultSet, scens::DataFrame)::DataFrame
+function pathway_diversity(rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64})::DataFrame
     options = ADRIA.analysis.option_seed_preference()
     options.probabilities = fill(Float64[], size(options, 1))
     options.pathway_diversity = zeros(size(options, 1))
 
     for (idx_option, start_option) in enumerate(options.option_name)
-        options[idx_option, :probabilities] = pathway_diversity(rs, scens, start_option)
+        options[idx_option, :probabilities] = pathway_diversity(rs, scens, idx_scens, start_option)
         options[idx_option, :pathway_diversity] = sum(
             _entropy.(options[idx_option, :probabilities])
         )
     end
     return options[:, [:option_name, :pathway_diversity]]
 end
-function pathway_diversity(rs::ResultSet, scens::DataFrame, option::Symbol)::Vector{Float64}
+function pathway_diversity(rs::ResultSet, scens::DataFrame, idx_scens::Vector{Int64}, option::Symbol)::Vector{Float64}
     start_time::Int64 = rs.inputs.seed_year_start[1] + rs.inputs.pd_frequency[1]
     end_time::Int64 =
         rs.inputs.seed_year_start[1] + rs.inputs.seed_years[1] - rs.inputs.pd_frequency[1]
     min_locs::Int64 = rs.inputs.min_iv_locations[1]
     mcda_method = ADRIA.mcda_methods()[Int64(rs.inputs.guided[1])]
 
-    idx_scens = findall(
+    idx_option_scens = findall(
         option_ts -> option_ts[Int64(rs.inputs.seed_year_start[1])] == option,
         scens.option_ts
     )
+    idx_scens = intersect(idx_scens, idx_option_scens)
+    println(idx_scens)
     probs = ones(length(idx_scens))
 
     for (idx_prob, idx_scen) in enumerate(idx_scens)
