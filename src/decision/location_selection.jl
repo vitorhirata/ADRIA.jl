@@ -92,6 +92,13 @@ function rank_locations(
     # Sum of coral cover (relative to k area) at each location and scenario
     sum_cover = vec(sum(dom.init_coral_cover; dims=1).data)
 
+    loc_taxa_cover = relative_loc_taxa_cover(
+        reshape(dom.init_coral_cover.data, (1, size(dom.init_coral_cover)...)),
+        loc_k_area(dom),
+        dom.coral_growth.n_groups
+    )
+    diversity = coral_diversity(loc_taxa_cover.data)[timesteps=1].data
+
     leftover_space_scens = relative_leftover_space(sum_cover) .* k_area_locs'
 
     area_weighted_conn = dom.conn.data .* loc_k_area(dom)
@@ -156,6 +163,7 @@ function rank_locations(
             dhw_scens .= 0.0
         end
 
+        #=
         wave_scen_idx = Int64(scen[factors=At("wave_scenario")][1])
         if wave_scen_idx > 0.0
             wave_scens = dom.wave_scens[:, :, dhw_scen_idx]
@@ -163,9 +171,10 @@ function rank_locations(
             wave_scens = copy(dom.wave_scens[:, :, 1])
             wave_scens .= 0.0
         end
+        =#
 
         dhw_projection = weighted_projection(dhw_scens, 1, plan_horizon, decay, 75)
-        wave_projection = weighted_projection(wave_scens, 1, plan_horizon, decay, 75)
+        #wave_projection = weighted_projection(wave_scens, 1, plan_horizon, decay, 75)
 
         # Create shared decision matrix
         # Ignore locations that cannot support corals or are out of depth bounds
@@ -178,8 +187,9 @@ function rank_locations(
                 in_connectivity=in_conn[valid_seed_locs],
                 out_connectivity=out_conn[valid_seed_locs],
                 heat_stress=dhw_projection[valid_seed_locs],
-                wave_stress=wave_projection[valid_seed_locs],
-                coral_cover=sum_cover[valid_seed_locs]
+                #wave_stress=wave_projection[valid_seed_locs],
+                coral_cover=sum_cover[valid_seed_locs],
+                coral_diversity=diversity[valid_seed_locs]
             )
 
             # Ensure what to do with this because it is usually empty
@@ -211,7 +221,7 @@ function rank_locations(
                 in_connectivity=in_conn[valid_fog_locs],
                 out_connectivity=out_conn[valid_fog_locs],
                 heat_stress=dhw_projection[valid_fog_locs],
-                wave_stress=wave_projection[valid_fog_locs],
+                #wave_stress=wave_projection[valid_fog_locs],
                 coral_cover=sum_cover[valid_fog_locs]
             )
             selected_fog_ranks = select_locations(

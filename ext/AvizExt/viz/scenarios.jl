@@ -300,6 +300,8 @@ function _render_legend(
     _colors = colors(scen_groups)
     line_els::Vector{LineElement} = [LineElement(; color=_colors[n]) for n in legend_labels]
 
+    # Manually change legend label
+    legend_labels = [:heat_stress, :geographic_spread, :connectivity, :functional_diversity, :balanced]
     Legend(g[legend_position...], line_els, labels(legend_labels); framevisible=false)
 
     return nothing

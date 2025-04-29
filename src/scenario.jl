@@ -17,7 +17,7 @@ using ADRIA.metrics:
     absolute_shelter_volume,
     relative_shelter_volume
 using ADRIA.metrics: relative_juveniles, relative_taxa_cover, juvenile_indicator
-using ADRIA.metrics: coral_evenness
+using ADRIA.metrics: coral_evenness, coral_diversity
 using ADRIA.decision
 
 """
@@ -256,7 +256,7 @@ function run_scenarios(
     sort!(scenarios_df, :RCP)
 
     @info "Setting up Result Set"
-    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df)
+    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df[:, Not("option_ts")])
 
     # Convert DataFrame to named matrix for faster iteration
     scenarios_matrix::YAXArray = DataCube(
@@ -467,7 +467,9 @@ function run_scenario(
 
     # Store logs
     c_dim = Base.ndims(result_set.raw) + 1
-    log_stores = (:site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log)
+    log_stores = (
+        :site_ranks, :seed_log, :fog_log, :shade_log, :coral_dhw_log, :decision_matrix_log
+    )
     for k in log_stores
         if k == :seed_log || k == :site_ranks
             concat_dim = c_dim
@@ -483,7 +485,7 @@ function run_scenario(
             err isa MethodError ? nothing : rethrow(err)
         end
 
-        if k == :seed_log
+        if k == :seed_log || k == :decision_matrix_log
             getfield(data_store, k)[:, :, :, idx] .= vals
         elseif k == :site_ranks
             if !isnothing(data_store.site_ranks)
@@ -581,7 +583,10 @@ function run_model(
 
     # Set random seed using intervention values
     # TODO: More robust way of getting intervention/criteria values
-    rnd_seed_val::Int64 = floor(Int64, sum(param_set[Where(x -> x != "RCP")]))  # select everything except RCP
+    # select everything except RCP and option_ts
+    rnd_seed_val::Int64 = floor(
+        Int64, sum(param_set[Where(x -> x != "RCP" && x != "option_ts")])
+    )
     Random.seed!(rnd_seed_val)
 
     # Extract environmental data
@@ -593,6 +598,8 @@ function run_model(
         dhw_scen = copy(domain.dhw_scens[:, :, 1])
         dhw_scen .= 0.0
     end
+
+    options = ADRIA.analysis.option_seed_preference()
 
     wave_idx::Int64 = Int64(param_set[At("wave_scenario")])
     if wave_idx > 0.0
@@ -729,7 +736,8 @@ function run_model(
     )
 
     # Extract colony areas and determine approximate seeded area in m^2
-    seed_volume = param_set[At(taxa_names)]
+    seed_volume = map(Float64, param_set[At(taxa_names)])
+
     colony_areas = _to_group_size(
         domain.coral_growth, colony_mean_area(corals.mean_colony_diameter_m)
     )
@@ -762,7 +770,7 @@ function run_model(
         fog_pref = FogPreferences(domain, param_set)
 
         # Calculate cluster diversity and geographic separation scores
-        diversity_scores = decision.cluster_diversity(domain.loc_data.cluster_id)
+        diversity_scores = decision.cluster_diversity(domain.loc_data.SPATIAL_GROUPING)
         separation_scores = decision.geographic_separation(domain.loc_data.mean_to_neighbor)
 
         # Create shared decision matrix, setting criteria values that do not change
@@ -857,23 +865,23 @@ function run_model(
     )
 
     # Extract unique biogroups and creating location masks for each biogroup
-    unique_biogroups::Vector{Int64} = unique(domain.loc_data.GROUPED_BIOREGION)
+    unique_biogroups::Vector{Int64} = unique(domain.loc_data.SPATIAL_GROUPING)
     n_biogroups::Int64 = length(unique_biogroups)
     biogroup_masks::BitMatrix = falses(n_locs, n_biogroups)
     for (idx, biogroup) in enumerate(unique_biogroups)
-        biogroup_masks[:, idx] .= domain.loc_data.GROUPED_BIOREGION .== biogroup
+        biogroup_masks[:, idx] .= domain.loc_data.SPATIAL_GROUPING .== biogroup
     end
     # Index into unique_biogroups for each location
     loc_biogrp_idxs::Vector{Int64} = [
         findfirst(x -> x == biogrp, unique_biogroups)
-        for biogrp in domain.loc_data.GROUPED_BIOREGION
+        for biogrp in domain.loc_data.SPATIAL_GROUPING
     ]
 
     growth_acc_names::Vector{String} = accel_params_array_to_vec(
         generate_growth_accel_names(unique_biogroups)
     )
     growth_accel_parameters::Matrix{Float64} = accel_params_vec_to_array(
-        param_set[factors=At(growth_acc_names)], n_biogroups
+        map(Float64, param_set[factors=At(growth_acc_names)]), n_biogroups
     )
 
     growth_acc_steepness::Vector{Float64} = growth_accel_parameters[:, 1]
@@ -890,7 +898,7 @@ function run_model(
     )
     # Extract scale factors array of dimensions [taxa ⋅ param_type · bioregion_group]
     scale_factors::Array{Float64,3} = scale_factor_vec_to_array(
-        param_set[factors=At(sf_col_names)],
+        map(Float64, param_set[factors=At(sf_col_names)]),
         n_groups,
         n_biogroups,
         2
@@ -914,8 +922,11 @@ function run_model(
     FLoops.assistant(false)
     habitable_loc_idxs = findall(habitable_locs)
 
+    decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
+        location=domain.loc_ids, criteria=seed_pref.names)
+
     apply_growth_acc_mask::BitVector = trues(n_locs)
-    for tstep::Int64 in 2:tf
+    for tstep::Int64 in 2:(param_set[At("seed_year_start")] + param_set[At("seed_years")])
 
         # Convert cover to absolute values to use within CoralBlox model
         C_cover_t[:, :, habitable_locs] .=
@@ -1112,7 +1123,7 @@ function run_model(
             dhw_p[tstep, :] .= dhw_t
 
             dhw_projection = weighted_projection(dhw_p, tstep, plan_horizon, decay, tf)
-            wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
+            #wave_projection = weighted_projection(wave_scen, tstep, plan_horizon, decay, tf)
 
             # Determine connectivity strength weighting by area.
             # Accounts for strength of connectivity where there is low/no coral cover
@@ -1120,15 +1131,27 @@ function run_model(
                 area_weighted_conn, vec(loc_coral_cover), conn_cache
             )
 
+            loc_taxa_cover = relative_loc_taxa_cover(
+                reshape(C_cover_t, (1, n_group_and_size, n_locs)),
+                vec_abs_k,
+                n_groups
+            )
+            diversity = coral_diversity(loc_taxa_cover.data)[timesteps=1].data
+
             update_criteria_values!(
                 decision_mat;
                 heat_stress=dhw_projection[_valid_locs],
-                wave_stress=wave_projection[_valid_locs],
+                #wave_stress=wave_projection[_valid_locs],
                 coral_cover=loc_coral_cover[_valid_locs],  # Coral cover relative to `k`
                 in_connectivity=in_conn[_valid_locs],  # area weighted connectivities for time `t`
-                out_connectivity=out_conn[_valid_locs]
+                out_connectivity=out_conn[_valid_locs],
+                coral_diversity=diversity[_valid_locs]
             )
 
+            decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
+
+            option = param_set[At("option_ts")][tstep]
+            seed_pref = options[options.option_name .== option, :preference][1]
             selected_seed_ranks = select_locations(
                 seed_pref,
                 decision_mat[location=locs_with_space[_valid_locs]],
@@ -1271,7 +1294,8 @@ function run_model(
         shade_log=Yshade,
         site_ranks=log_location_ranks,
         bleaching_mortality=bleaching_mort,
-        coral_dhw_log=collated_dhw_tol_log
+        coral_dhw_log=collated_dhw_tol_log,
+        decision_matrix_log=decision_matrix_log
     )
 end
 
