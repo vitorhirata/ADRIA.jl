@@ -13,6 +13,7 @@ Base.@kwdef struct FogCriteriaWeights <: DecisionWeights
         name="Fog Heat Stress",
         description="Preference locations with lower heat stress for fogging."
     )
+    #=
     fog_wave_stress::Param = Factor(
         1.0;
         ptype="continuous",
@@ -22,6 +23,7 @@ Base.@kwdef struct FogCriteriaWeights <: DecisionWeights
         name="Fog Wave Stress",
         description="Preference locations with lower wave activity for fogging."
     )
+    =#
     fog_in_connectivity::Param = Factor(
         1.0;
         ptype="continuous",
@@ -75,6 +77,15 @@ Base.@kwdef struct FogCriteriaWeights <: DecisionWeights
         direction=minimum,
         name="Geographic Separation",
         description="Fog locations that are distant (when maximized) or closer (when minimized) to their neighbors."
+    )
+    fog_coral_diversity::Param = Factor(
+        0.5;
+        ptype="continuous",
+        dist=Uniform,
+        dist_params=(0.0, 1.0),
+        direction=maximum,
+        name="Coral Diversity",
+        description="Prefer locations that have a higher Simpson diversity."
     )
     # Disabled as they are currently unnecessary
     # fog_priority::Param= Factor(
