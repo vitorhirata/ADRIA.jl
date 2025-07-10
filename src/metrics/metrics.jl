@@ -347,6 +347,44 @@ coral_evenness = Metric(
 )
 
 """
+    coral_diversity(r_taxa_cover::AbstractArray{T})::AbstractArray{T} where {T<:Real}
+
+Calculates coral taxa diversity as a dimensionless metric. Derived from thFe simpsons diversity,
+D = 1-sum_i((cov_i/cov)^2) where cov is the total coral cover and cov_i is the cover of taxa i.
+Formulated by Dr Mike Williams (mjmcwilliam@outlook.com) and Dr Morgan Pratchett (morgan.pratchett@jcu.edu.au).
+Method copied from Rose PR.
+"""
+function _coral_diversity(
+    r_taxa_cover::AbstractArray{T,3}
+)::AbstractArray{T,2} where {T<:Real}
+    n_steps, n_grps, n_locs = size(r_taxa_cover)
+
+    diversity::YAXArray = ZeroDataCube(
+        (:timesteps, :locations), (n_steps, n_locs), r_taxa_cover.properties
+    )
+    loc_cover = dropdims(sum(r_taxa_cover; dims=2); dims=2)
+
+    # Diversity is 1-(approx. probability of same taxa draws)
+    for loc in axes(loc_cover, 2)
+        diversity[:, loc] =
+            1 .- sum((r_taxa_cover[:, :, loc] ./ loc_cover[:, loc]) .^ 2; dims=2)
+    end
+
+    return replace!(
+        diversity, NaN => 0.0, Inf => 0.0
+    )
+end
+function _coral_diversity(rs::ResultSet)::AbstractArray{<:Real,3}
+    return rs.outcomes[:coral_diversity]
+end
+coral_diversity = Metric(
+    _coral_diversity,
+    (:timesteps, :locations, :scenarios),
+    "Coral Diversity",
+    IS_RELATIVE
+)
+
+"""
     _colony_Lcm2_to_m3m2(inputs::DataFrame)::Tuple
     _colony_Lcm2_to_m3m2(inputs::YAXArray)::Tuple{Vector{Float64},Vector{Float64}}
 
