@@ -1,7 +1,7 @@
 name = "ADRIA"
 uuid = "7dc409a7-fbe5-4c9d-b3e2-b0c19a6ba600"
-authors = ["Takuya Iwanaga", "Rose Crocker", "Pedro Ribeiro de Almeida", "Ken Anthony", "Arlo White", "Daniel Tan", "Benjamin Grier", "Peter Baker"]
 version = "0.11.0"
+authors = ["Takuya Iwanaga", "Rose Crocker", "Pedro Ribeiro de Almeida", "Ken Anthony", "Arlo White", "Daniel Tan", "Benjamin Grier", "Peter Baker"]
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
@@ -88,7 +88,7 @@ CoralBlox = "1"
 CpuId = "0.3"
 DataEnvelopmentAnalysis = "0.9.1"
 DataFrames = "1"
-DataStructures = "0.18, 0.2"
+DataStructures = "0.18, 0.2, 0.19"
 Dates = "1"
 DimensionalData = "0.25, 0.26, 0.27, 0.29"
 Distances = "0.10"
