@@ -1,7 +1,7 @@
 name = "ADRIA"
 uuid = "7dc409a7-fbe5-4c9d-b3e2-b0c19a6ba600"
-authors = ["Takuya Iwanaga", "Rose Crocker", "Pedro Ribeiro de Almeida", "Ken Anthony", "Arlo White", "Daniel Tan", "Benjamin Grier", "Peter Baker"]
 version = "0.11.0"
+authors = ["Takuya Iwanaga", "Rose Crocker", "Pedro Ribeiro de Almeida", "Ken Anthony", "Arlo White", "Daniel Tan", "Benjamin Grier", "Peter Baker"]
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
@@ -107,7 +107,7 @@ Graphs = "1.4, 1.5"
 HypothesisTests = "0.10, 0.11"
 ImageIO = "0.6"
 InteractiveUtils = "1"
-Interpolations = "0.14, 0.15"
+Interpolations = "0.14, 0.15, 0.16"
 IterTools = "1"
 JMcDM = "0.7"
 JSON = "0.21.3"
