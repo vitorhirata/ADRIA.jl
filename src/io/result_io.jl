@@ -161,7 +161,7 @@ end
 """
     setup_logs(z_store, unique_loc_ids, n_scens, tf, n_locs, n_groups, n_sizes)
 
-Setup logs for ranks, seed_log, fog_log, shade_log and coral_dhw_log.
+Setup logs for ranks, seed_log, fog_log, shade_log, coral_dhw_log and decision_matrix_log.
 
 # Arguments
 - `z_store` : ZArray
@@ -186,6 +186,11 @@ function setup_logs(z_store, unique_loc_ids, n_scens, tf, n_locs, n_groups, n_si
 
     # tf, no. species to seed, location id and rank, no. scenarios
     seed_dims::Tuple{Int64,Int64,Int64,Int64} = (tf, n_groups, n_locs, n_scens)
+
+    n_mcda_criteria = length(fieldnames(ADRIA.SeedCriteriaWeights))
+    decision_matrix_dims::Tuple{Int64,Int64,Int64,Int64} = (
+        tf, n_locs, n_mcda_criteria, n_scens
+    )
 
     attrs = Dict(
         # Here, "intervention" refers to seeding or shading
@@ -288,7 +293,22 @@ function setup_logs(z_store, unique_loc_ids, n_scens, tf, n_locs, n_groups, n_si
         )
     end
 
-    return ranks, seed_log, fog_log, shade_log, coral_dhw_log
+    attrs = Dict(
+        :structure => ("timesteps", "location", "criteria", "scenarios"),
+        :unique_loc_ids => unique_loc_ids
+    )
+    decision_matrix_log = zcreate(
+        Float32,
+        decision_matrix_dims...;
+        name="decision_matrix",
+        fill_value=nothing,
+        fill_as_missing=false,
+        path=log_fn,
+        chunks=(decision_matrix_dims[1:3]..., 1),
+        attrs=attrs
+    )
+
+    return ranks, seed_log, fog_log, shade_log, coral_dhw_log, decision_matrix_log
 end
 
 """
@@ -525,7 +545,8 @@ function setup_result_store!(domain::Domain, scen_spec::DataFrame)::Tuple
                 :seed_log,
                 :fog_log,
                 :shade_log,
-                :coral_dhw_log
+                :coral_dhw_log,
+                :decision_matrix_log
             ),
             stores
         )...
