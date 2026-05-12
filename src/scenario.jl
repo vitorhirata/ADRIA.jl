@@ -158,7 +158,7 @@ function run_scenarios(
     sort!(scenarios_df, :RCP)
 
     @info "Setting up Result Set"
-    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df)
+    dom, data_store = ADRIA.setup_result_store!(dom, scenarios_df[:, Not("option_ts")])
 
     # Convert DataFrame to named matrix for faster iteration
     scenarios_matrix::YAXArray = DataCube(
@@ -379,7 +379,8 @@ function run_scenario(
         :fog_log,
         :shade_log,
         :coral_dhw_log,
-        :coral_cover_log
+        :coral_cover_log,
+        :decision_matrix_log
     )
     for k in log_stores
         if k == :seed_log || k == :site_ranks
@@ -396,7 +397,7 @@ function run_scenario(
             err isa MethodError ? nothing : rethrow(err)
         end
 
-        if k == :seed_log || k == :mc_log
+        if k == :seed_log || k == :mc_log || k == :decision_matrix_log
             getfield(data_store, k)[:, :, :, idx] .= vals
         elseif k == :site_ranks
             if !isnothing(data_store.site_ranks)
@@ -573,6 +574,8 @@ function run_model(
         dhw_scen .= 0.0
         tf = size(dhw_scen, 1)
     end
+
+    options = ADRIA.analysis.option_seed_preference()
 
     wave_idx::Int64 = Int64(param_set[At("wave_scenario")])
     if wave_idx > 0.0
@@ -929,7 +932,11 @@ function run_model(
     cover_transition_lb = 0.05
     cover_transition_ub = 0.80
 
-    for tstep::Int64 in 2:tf
+    # Decision matrix log
+    decision_matrix_log = ZeroDataCube(; T=Float64, timesteps=1:tf,
+        location=domain.loc_ids[habitable_locs], criteria=seed_pref.names)
+
+    for tstep::Int64 in 2:(param_set[At("seed_year_start")] + param_set[At("seed_years")])
         # Convert cover to absolute values to use within CoralBlox model
         C_cover_t[:, :, habitable_locs] .=
             C_cover[tstep - 1, :, :, habitable_locs] .* habitable_loc_areas′
@@ -1486,15 +1493,29 @@ function run_model(
                     )
 
                     if is_guided
+                        # Compute diversity index
+                        loc_taxa_cover = relative_loc_taxa_cover(
+                            reshape(C_cover_t, (1, n_group_and_size, n_locs)),
+                            vec_abs_k,
+                            n_groups
+                        )
+                        diversity = coral_diversity(loc_taxa_cover.data)[timesteps=1].data
+
                         # Update decision matrix with current conditions
                         update_criteria_values!(
                             seed_decision_mat[location=At(share_candidate_locs)];
                             heat_stress=dhw_projection[share_candidate_loc_idx],
-                            wave_stress=wave_projection[share_candidate_loc_idx],
+                            #wave_stress=wave_projection[share_candidate_loc_idx],
                             coral_cover=current_loc_cover[share_candidate_loc_idx],
                             in_connectivity=in_conn[share_candidate_loc_idx],
-                            out_connectivity=out_conn[share_candidate_loc_idx]
+                            out_connectivity=out_conn[share_candidate_loc_idx],
+                            coral_diversity=diversity[candidate_loc_indices]
                         )
+
+                        decision_matrix_log[timesteps=tstep, location=considered_locs] .= decision_mat[location=locs_with_space[_valid_locs]]
+
+                        option = param_set[At("option_ts")][tstep]
+                        seed_pref = options[options.option_name .== option, :preference][1]
 
                         # Build state for target locations only
                         selected_seed_ranks = select_locations(
@@ -1686,6 +1707,7 @@ function run_model(
         site_ranks=log_location_ranks,
         bleaching_mortality=bleach_dhw,
         coral_dhw_log=collated_dhw_tol_log,
-        coral_cover_log=collated_cover_log
+        coral_cover_log=collated_cover_log,
+        decision_matrix_log=decision_matrix_log
     )
 end
